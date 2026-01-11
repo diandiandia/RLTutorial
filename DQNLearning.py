@@ -29,7 +29,7 @@ class Params(NamedTuple):
     epsilon_decay: float  # 探索率衰减因子
     epsilon_end: float  # 最小探索率
     target_update: int  # 目标网络更新频率
-    device: torch.device  # 计算设备（CPU或GPU）
+    device: torch.device = torch.device("mps" if torch.mps.is_available() else "cpu")  # Mac MPS设备
 
 # 定义Q网络类，继承自PyTorch的nn.Module
 class DQNetwork(nn.Module):
@@ -106,8 +106,8 @@ class DQNLearning:
 
     def update(self, transition_dict):
         # 从转换字典中获取批量样本并转换为numpy数组
-        states_np = np.array(transition_dict['states'])
-        next_states_np = np.array(transition_dict['next_states'])
+        states_np = transition_dict['states']
+        next_states_np = transition_dict['next_states']
         
         # 将numpy数组转换为PyTorch张量，并移动到指定设备
         tensor_states = torch.tensor(states_np, dtype=torch.float32).to(self.device)
@@ -237,32 +237,6 @@ def main():
         if (episode + 1) % agent.target_update == 0:
             agent.update_target_network()
             print(f"Target network updated at episode {episode+1}")
-
-        # 如果回合奖励达到一定阈值（说明智能体已经学会解决问题），保存模型
-        if episode_reward >= -100:  # MountainCar-v0的解决标准
-            print(f"Environment solved at episode {episode+1} with reward {episode_reward}")
-            agent.save_model(f"dqn_mountaincar_{episode+1}_reward_{episode_reward:.2f}.pth")
-            test_agent(agent)
-
-def test_agent(agent, num_episodes=10):
-    env = gym.make("MountainCar-v0", render_mode="human")
-    for episode in range(num_episodes):
-        state, _ = env.reset()
-        done = False
-        episode_reward = 0
-        
-        while not done:
-            action = agent.choose_action(state)
-            next_state, reward, terminated, truncated, _ = env.step(action)
-            episode_reward += reward
-            done = terminated or truncated
-            state = next_state
-        
-        print(f"Test Episode {episode+1}/{num_episodes}, Reward: {episode_reward}")
-    env.close()
-
-
-
 
 
 # 程序入口，当直接运行该脚本时执行main函数
